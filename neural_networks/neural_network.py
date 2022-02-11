@@ -11,8 +11,7 @@ def infer_layer_dimensions(input_dim, architecture):
 
 class NeuralNetwork():
     '''
-    Implements a layer for a feed-forward neural network.
-    To account for bias, augment input data with 1's.
+    Implements  a feed-forward neural network.
 
     Input: (batch_size, dimension)
     Output: (batch_size, num_output_neurons)
