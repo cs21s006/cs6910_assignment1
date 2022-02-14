@@ -36,10 +36,7 @@ def softmax(x):
     return e_x / np.sum(e_x, axis=1).reshape(-1, 1)
 
 def softmax_gradient(x):
-    s = softmax(x)
-    g = np.multiply(s, 1.0-s)
-    g = np.clip(g, 1e-6, 1 - 1e-6)
-    return g
+    return np.ones(x.shape)  # cross_entropy softmax gradient shortcut
 
 
 activations = {
