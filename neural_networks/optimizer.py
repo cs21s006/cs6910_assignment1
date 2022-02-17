@@ -54,11 +54,11 @@ class Optimizer():
             if l == 0:  # output layer
                 d_L = loss_grad(y_true, y_pred)
                 d_A = np.multiply(d_L, layer.gradient())
-                d_W = np.matmul(layer.input.T, d_A) / batch_size
+                d_W = np.matmul(layer.input.T, d_A) / batch_size +  (self.weight_decay * layer.W) 
                 d_b = np.mean(d_A, axis=0) if layer.use_bias else np.zeros(layer.b.shape)
             else:  # input and hidden layers
                 d_A = np.multiply(np.matmul(d_A, next_layer.W.T), layer.gradient())
-                d_W = np.matmul(layer.input.T, d_A) / batch_size
+                d_W = np.matmul(layer.input.T, d_A) / batch_size +  (self.weight_decay * layer.W) 
                 d_b = np.mean(d_A, axis=0) if layer.use_bias else np.zeros(layer.b.shape)
 
             next_layer = layer
