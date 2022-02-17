@@ -42,6 +42,12 @@ class Optimizer():
         _, loss_grad = loss
 
         layers = self.model.layers.copy()
+        
+        if self.algorithm in ['nag']:  # lookahead
+            for l in range(len(layers)):
+                layers[l].W -= self.momentum * self.m_t[l][WEIGHT]
+                layers[l].b -= self.momentum * self.m_t[l][BIAS]
+        
 
         for l, layer in enumerate(reversed(layers)):
             
