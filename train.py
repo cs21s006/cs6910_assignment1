@@ -16,14 +16,15 @@ def train_and_evaluate(args):
 
 
     # Instantiate model
-    architecture = [{'num_neurons': args.hidden_size, 'activation': args.activation}
+    architecture = [{'num_neurons': args.hidden_size, 'activation': args.activation, 'init_method': args.weight_init}
                     for _ in range(args.num_layers)]
     architecture.append({'num_neurons': 10, 'activation': 'softmax'})  # add output layer
 
     model = NeuralNetwork(input_dim=784, architecture=architecture)
     optimizer = Optimizer(model, algorithm=args.optimizer,
                           momentum=args.momentum, beta=args.beta,
-                          beta1=args.beta1, beta2=args.beta2, epsilon=args.epsilon)
+                          beta1=args.beta1, beta2=args.beta2, epsilon=args.epsilon,
+                          weight_decay=args.weight_decay)
     lr = args.learning_rate
     loss_fn, _ = losses[args.loss]
 
@@ -85,7 +86,12 @@ if __name__ == '__main__':
     parser.add_argument('-beta2', '--beta2', type=float, default=0.99,
                         help='Beta2 used by adam and nadam optimizers')
     parser.add_argument('-eps', '--epsilon', type=float, default=1e-6,
-                        help='Epsilon used by optimizers')                                                
+                        help='Epsilon used by optimizers')
+    parser.add_argument('-lambda', '--weight_decay', type=float, default=.0,
+                        help='Weight decay used by optimizers'),
+    parser.add_argument('-w_i', '--weight_init', type=float, default=.0,
+                        choices=['Xavier_normal', 'Xavier_uniform', 'He_normal', 'He_uniform'],
+                        help='Weight initialization method used by optimizers')
     parser.add_argument('-hl', '--num_layers', type=int, default=1,
                         help='Number of feedforward layers')
     parser.add_argument('-sz', '--hidden_size', type=int, default=32,
@@ -103,6 +109,7 @@ if __name__ == '__main__':
         f'hl={args.num_layers}',
         f'sz={args.hidden_size}',
         f'a={args.activation}',
+        f'wi={args.weight_init}',
         f'l={"".join([w[0] for w in args.loss.split("_")])}'  # extract loss short form
     ])
     print(run_name)
