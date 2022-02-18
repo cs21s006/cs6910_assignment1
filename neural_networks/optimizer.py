@@ -4,10 +4,10 @@ from numpy.linalg import norm
 WEIGHT, BIAS = 0, 1  # Enumerator for indexing optimizer parameters
 
 
-def clip_gradients(gradients, clip_ratio=1.0, norm_type=2):
+def clip_gradients(gradients, clip_ratio=1.0, norm_type=2, epsilon=1e-8):
 
     def normalize(gradient):
-        return (clip_ratio * gradient / norm(gradient, ord=norm_type))
+        return (clip_ratio * gradient / (norm(gradient, ord=norm_type) + epsilon))
     
     return [(normalize(d_W), normalize(d_b)) for (d_W, d_b) in gradients]
 
