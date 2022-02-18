@@ -4,21 +4,20 @@ from . import activations
 
 
 def init_weights(input_dim, output_dim, init_method):
-    match init_method:
-        case 'Xavier_normal':
-            n = input_dim + output_dim
-            return np.random.normal(scale=np.sqrt(2/n), size=(input_dim, output_dim))
-        case 'Xavier_uniform':
-            n = input_dim + output_dim
-            return np.random.uniform(low=-np.sqrt(6/n), high=np.sqrt(6/n),
-                                     size=(input_dim, output_dim))
-        case 'He_normal':
-            return np.random.normal(scale=np.sqrt(2/input_dim), size=(input_dim, output_dim))
-        case 'He_uniform':
-            return np.random.uniform(low=-np.sqrt(6/input_dim), high=np.sqrt(6/input_dim),
-                                     size=(input_dim, output_dim))
-        case _:
-            return np.random.randn(input_dim, output_dim)
+    if init_method ==  'Xavier_normal':
+        n = input_dim + output_dim
+        return np.random.normal(scale=np.sqrt(2/n), size=(input_dim, output_dim))
+    elif init_method == 'Xavier_uniform':
+        n = input_dim + output_dim
+        return np.random.uniform(low=-np.sqrt(6/n), high=np.sqrt(6/n),
+                                    size=(input_dim, output_dim))
+    elif init_method == 'He_normal':
+        return np.random.normal(scale=np.sqrt(2/input_dim), size=(input_dim, output_dim))
+    elif init_method == 'He_uniform':
+        return np.random.uniform(low=-np.sqrt(6/input_dim), high=np.sqrt(6/input_dim),
+                                    size=(input_dim, output_dim))
+    else :
+        return np.random.randn(input_dim, output_dim)
 
 
 class Layer():
