@@ -2,6 +2,7 @@ import numpy as np
 
 from . import activations
 
+np.random.seed(42)
 
 def init_weights(input_dim, output_dim, init_method):
     if init_method ==  'Xavier_normal':
