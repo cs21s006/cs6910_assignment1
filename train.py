@@ -1,19 +1,33 @@
+import wandb
 import argparse
 import numpy as np
 from tqdm import tqdm
-from keras.datasets import fashion_mnist
+from keras.datasets import mnist, fashion_mnist
+from sklearn.model_selection import train_test_split 
 
 from neural_networks import NeuralNetwork, Optimizer, clip_gradients, losses
 from utils import preprocess_data, make_batches, accuracy, gradient_sum
 
 
 def train_and_evaluate(args):
+
+    # Setup wandb.ai
+    run_name = '_'.join([f'e={args.epochs}', f'b={args.batch_size}', f'o={args.optimizer}',
+        f'lr={args.learning_rate}', f'hl={args.num_layers}', f'sz={args.hidden_size}', f'a={args.activation}',
+        f'w_i={args.weight_init}', f'w_d={args.weight_decay}',
+        f'l={"".join([w[0] for w in args.loss.split("_")])}'  # extract loss short form
+    ])
+    print("Running: ", run_name)
+    wandb.init(project=args.project_name, name=run_name)
+
     # Load Data
-    (X_train, y_train), (X_test, y_test) = fashion_mnist.load_data()
+    (X_train, y_train), (X_test, y_test) = mnist.load_data() if args.dataset == 'mnist' else fashion_mnist.load_data()
+    X_train,X_val,y_train,y_val = train_test_split(X_train, y_train, test_size=0.1,
+                                                   random_state=1, stratify=y_train)
     (X_train, y_train) = preprocess_data(X_train, y_train)
     (X_test, y_test) = preprocess_data(X_test, y_test)
-    print(X_train.shape, y_train.shape, X_test.shape, y_test.shape)
-
+    (X_val,y_val) = preprocess_data(X_val,y_val)
+    print(X_train.shape, y_train.shape, X_test.shape, y_test.shape,X_val.shape,y_val.shape)
 
     # Instantiate model
     architecture = [{'num_neurons': args.hidden_size, 'activation': args.activation, 'init_method': args.weight_init}
@@ -29,12 +43,12 @@ def train_and_evaluate(args):
     loss_fn, _ = losses[args.loss]
 
     # Train
-    history = {'loss': [], 'gradient_sum': []}
 
     for epoch in range(args.epochs):
-
+        running_loss, running_grad = .0, .0
+        num_steps = (X_train.shape[0] // args.batch_size)
         progress_bar = tqdm(make_batches(X_train, y_train, args.batch_size),
-                            total=(X_train.shape[0] // args.batch_size))
+                            total=num_steps)
         for (X_batch, y_batch) in progress_bar:
             # Forward
             y_pred = model.forward(X_batch)
@@ -46,25 +60,51 @@ def train_and_evaluate(args):
 
             # Track acc, loss and gradients
             loss = loss_fn(y_batch, y_pred)
-            history['loss'].append(loss)
-            history['gradient_sum'].append(gradient_sum(gradients))
+            grad_sum = gradient_sum(gradients)
             acc = accuracy(y_batch, y_pred)
             progress_bar.set_description(
-                f"epoch: {epoch}, lr: {lr:.5f} | loss: {loss:.4f}, acc(batch): {acc:.4f}, grad:{history['gradient_sum'][-1]:.4f}"
+                f"epoch: {epoch}, lr: {lr:.5f} | loss: {loss:.4f}, acc(batch): {acc:.4f}, grad:{grad_sum:.4f}"
             )
-
-
+            
+            running_loss += loss
+            running_grad += grad_sum
+        
         # Evaluate train and test splits
         train_acc = accuracy(model.forward(X_train), y_train)
+        y_val_pred = model.forward(X_val)
+        val_acc = accuracy(y_val_pred,y_val)
+        val_loss = loss_fn(y_val,y_val_pred)
         test_acc = accuracy(model.forward(X_test), y_test)
-        print(f"acc(train): {train_acc:.4f}, acc(test): {test_acc:.4f}")
+        print(f"acc(train): {train_acc:.4f}, acc(val): {val_acc:.4f}, acc(test): {test_acc:.4f}")
         print('_' * 99)
+        
+        # Log metrics to wandb.ai
+        wandb.log({
+            'train_acc': train_acc, 
+            'val_acc': val_acc,
+            'train_loss': running_loss/num_steps,
+            'val_loss' : val_loss,
+            'test_acc': test_acc,
+            'epoch':epoch            
+        })
+    
+    y_true = np.argmax(y_test, axis=1)
+    y_pred = np.argmax(model.forward(X_test), axis=1)
+    class_names = [str(i) for i in range(10)]
+    wandb.log({
+      "confusion_matrix" : wandb.plot.confusion_matrix(probs=None,
+                              y_true=y_true, preds=y_pred,
+                              class_names=class_names)
+    })
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', '--project_name', type=str,
                         default='neural-networks-fashion-mnist',
+                        help='Project name used to setup wandb.ai dashboard.')
+    parser.add_argument('-d', '--dataset', type=str, default='fashion_mnist',
+                        choices=['mnist', 'fashion_mnist'],
                         help='Project name used to setup wandb.ai dashboard.')
     parser.add_argument('-e', '--epochs', type=int, default=30,
                         help='Number of epochs to train model.')
@@ -87,12 +127,12 @@ if __name__ == '__main__':
                         help='Beta2 used by adam and nadam optimizers')
     parser.add_argument('-eps', '--epsilon', type=float, default=1e-6,
                         help='Epsilon used by optimizers')
-    parser.add_argument('-lambda', '--weight_decay', type=float, default=.0,
+    parser.add_argument('-w_d', '--weight_decay', type=float, default=.0,
                         help='Weight decay used by optimizers'),
-    parser.add_argument('-w_i', '--weight_init', type=float, default=.0,
+    parser.add_argument('-w_i', '--weight_init', type=str, default='Xavier_normal',
                         choices=['Xavier_normal', 'Xavier_uniform', 'He_normal', 'He_uniform'],
                         help='Weight initialization method used by optimizers')
-    parser.add_argument('-hl', '--num_layers', type=int, default=1,
+    parser.add_argument('-nhl', '--num_layers', type=int, default=1,
                         help='Number of feedforward layers')
     parser.add_argument('-sz', '--hidden_size', type=int, default=32,
                         help='Number of hidden neurons in a feedfoward layer')
@@ -100,18 +140,5 @@ if __name__ == '__main__':
                         choices=['identity', 'sigmoid', 'tanh', 'ReLU'],
                         help='Activation function of feedforward layer')
     args = parser.parse_args()
-
-    run_name = '_'.join([
-        f'e={args.epochs}',
-        f'b={args.batch_size}',
-        f'o={args.optimizer}',
-        f'lr={args.learning_rate}',
-        f'hl={args.num_layers}',
-        f'sz={args.hidden_size}',
-        f'a={args.activation}',
-        f'wi={args.weight_init}',
-        f'l={"".join([w[0] for w in args.loss.split("_")])}'  # extract loss short form
-    ])
-    print(run_name)
     
     train_and_evaluate(args)
